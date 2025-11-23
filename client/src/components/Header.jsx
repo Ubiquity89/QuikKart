@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import logo from '../assets/logo.png'
+// Text-based logo instead of image
 import Search from './Search'
 import { Link, useNavigate } from 'react-router-dom'
 import { FaRegCircleUser } from 'react-icons/fa6'
