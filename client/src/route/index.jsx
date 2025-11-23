@@ -21,12 +21,14 @@ import ProductListPage from "../pages/ProductListPage";
 import ProductDisplayPage from "../pages/ProductDisplayPage";
 import CheckoutPage from "../pages/CheckoutPage";
 import Success from "../pages/Success";
+import ProtectedRoute from "../components/ProtectedRoute";
 
 const router = createBrowserRouter([
     {
         path: "/",
         element: <App />,
         children: [
+            // Public routes
             {
                 path: "",
                 element: <Home />
@@ -67,21 +69,39 @@ const router = createBrowserRouter([
                 path: "reset-password",
                 element: <ResetPassword />
             },
+
+            // Protected routes
             {
                 path: "user",
-                element: <UserMenuMobile />
+                element: (
+                    <ProtectedRoute>
+                        <UserMenuMobile />
+                    </ProtectedRoute>
+                )
             },
             {
                 path: "checkout",
-                element: <CheckoutPage />
+                element: (
+                    <ProtectedRoute>
+                        <CheckoutPage />
+                    </ProtectedRoute>
+                )
             },
             {
                 path: "success",
-                element: <Success />
+                element: (
+                    <ProtectedRoute>
+                        <Success />
+                    </ProtectedRoute>
+                )
             },
             {
                 path: "dashboard",
-                element: <Dashboard />,
+                element: (
+                    <ProtectedRoute>
+                        <Dashboard />
+                    </ProtectedRoute>
+                ),
                 children: [
                     {
                         path: "profile",
@@ -97,19 +117,35 @@ const router = createBrowserRouter([
                     },
                     {
                         path: "category",
-                        element: <AdminPermision><CategoryPage /></AdminPermision>
+                        element: (
+                            <AdminPermision>
+                                <CategoryPage />
+                            </AdminPermision>
+                        )
                     },
                     {
                         path: "subcategory",
-                        element: <AdminPermision><SubCategoryPage /></AdminPermision>
+                        element: (
+                            <AdminPermision>
+                                <SubCategoryPage />
+                            </AdminPermision>
+                        )
                     },
                     {
                         path: "upload-product",
-                        element:   <AdminPermision><UploadProduct /></AdminPermision>  
+                        element: (
+                            <AdminPermision>
+                                <UploadProduct />
+                            </AdminPermision>
+                        )
                     },
                     {
                         path: "product",
-                        element: <AdminPermision><ProductAdmin /></AdminPermision>
+                        element: (
+                            <AdminPermision>
+                                <ProductAdmin />
+                            </AdminPermision>
+                        )
                     }
                 ]
             }
