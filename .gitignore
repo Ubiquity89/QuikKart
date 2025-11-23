@@ -37,3 +37,4 @@ public/assets/
 server/uploads/
 client/src/assets/Image/product.zip
 *.zip
+.vercel
