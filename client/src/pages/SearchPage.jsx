@@ -102,7 +102,7 @@ const SearchPage = () => {
                 !data[0] && !loading && (
                   <div className='flex flex-col justify-center items-center w-full mx-auto'>
                     <img
-                      src={noDataImage} 
+                      src={NothingImg} 
                       className='w-full h-full max-w-xs max-h-xs block'
                     />
                     <p className='font-semibold my-2'>No Data found</p>
