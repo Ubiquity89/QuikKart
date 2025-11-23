@@ -23,11 +23,24 @@ import webhookRouter from "./route/webhook.route.js";
 
 const app = express();
 
-// CORS middleware
+
+const allowedOrigins = [
+  'http://localhost:5178',                     // local dev
+  'https://quik-kart-a3fp.vercel.app'         // deployed frontend
+];
+
 app.use(
   cors({
-    credentials: true, // able to access cookies from frontend
-    origin: process.env.FRONTEND_URL, // frontend url
+    credentials: true,
+    origin: function(origin, callback) {
+      // allow requests with no origin (like Postman)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      } else {
+        return callback(new Error('Not allowed by CORS'));
+      }
+    },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
   })
