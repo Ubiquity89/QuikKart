@@ -25,26 +25,25 @@ const app = express();
 
 
 const allowedOrigins = [
-  'http://localhost:5178',                     // local dev
-  'https://quik-kart-a3fp.vercel.app'         // deployed frontend
+  'http://localhost:5178',
+  /\.vercel\.app$/   // regex to allow all *.vercel.app domains
 ];
 
 app.use(
   cors({
     credentials: true,
     origin: function(origin, callback) {
-      // allow requests with no origin (like Postman)
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin)) {
+      if (!origin) return callback(null, true); // allow Postman/no-origin requests
+      if (allowedOrigins.some(o => (typeof o === 'string' ? o === origin : o.test(origin)))) {
         return callback(null, true);
-      } else {
-        return callback(new Error('Not allowed by CORS'));
       }
+      return callback(new Error(`CORS blocked for origin: ${origin}`));
     },
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    methods: ['GET','POST','PUT','DELETE','OPTIONS'],
+    allowedHeaders: ['Content-Type','Authorization']
   })
 );
+
 
 app.use(express.json());
 app.use(cookieParser());
