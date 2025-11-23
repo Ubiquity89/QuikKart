@@ -33,13 +33,13 @@ const SummaryApi = {
         url: "/api/user/logout",
         method: "post"
     },
-     uploadAvatar : {
-        url : "/api/user/upload-avatar",
-        method : 'put'
+    uploadAvatar: {
+        url: "/api/user/upload-avatar",
+        method: 'put'
     },
-    updateUserDetails : {
-        url : '/api/user/update-user',
-        method : 'put'
+    updateUserDetails: {
+        url: '/api/user/update-user',
+        method: 'put'
     },
     addCategory: {
         url: '/api/category/add-category',
@@ -53,13 +53,13 @@ const SummaryApi = {
         url: '/api/category/update',
         method: 'put'
     },
-    uploadImage:{
-        url:'/api/file/upload-image',
-        method:'post'
+    uploadImage: {
+        url: '/api/file/upload-image',
+        method: 'post'
     },
     deleteCategory: {
-         url:'/api/category/delete',
-        method:'delete'
+        url: '/api/category/delete',
+        method: 'delete'
     },
     createSubCategory: {
         url: '/api/subCategory/create',
@@ -124,22 +124,6 @@ const SummaryApi = {
     searchProduct: {
         url: '/api/product/search-product',
         method: 'post'
-    },
-    addTocart: {
-        url: '/api/cart/create',
-        method: 'post'
-    },
-    getCartItem: {
-        url: '/api/cart/get',
-        method: 'get'
-    },
-    updateCartItemQty: {
-        url: '/api/cart/update-qty',
-        method: 'put'
-    },
-    deleteCartItem: {
-        url: '/api/cart/delete-cart-item',
-        method: 'delete'
     },
     createAddress: {
         url: '/api/address/create',

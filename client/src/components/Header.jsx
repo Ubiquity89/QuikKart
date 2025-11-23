@@ -47,16 +47,16 @@ const handleCloseUserMenu = () => {
 
     <div className='container mx-auto flex items-center px-2 justify-between'>
       {/*logo*/}
-    <div className='h-full flex items-center'>
+      <div className='h-full flex items-center'>
         <Link to="/" className='h-full flex items-center pl-4 pr-6'>
-            <div className='h-full flex items-center'>
-              <h1 className='text-3xl md:text-4xl font-extrabold tracking-tight'>
-                <span className='text-yellow-400 font-sanssss'>Quick</span>
-                <span className='text-green-600 font-serif'>Kart</span>
-              </h1>
-            </div>
+          <div className='h-full flex items-center'>
+            <h1 className='text-3xl md:text-4xl font-extrabold tracking-tight'>
+              <span className='text-yellow-400 font-sans'>Quick</span>
+              <span className='text-green-600 font-serif'>Kart</span>
+            </h1>
+          </div>
         </Link>
-    </div>
+      </div>
     {/*search*/}
     <div className='hidden lg:block'>
       <Search/>
