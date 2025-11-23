@@ -32,12 +32,8 @@ server/node_modules
 
 public/images/
 public/assets/
-*.webp
+
 
 server/uploads/
 client/src/assets/Image/product.zip
 *.zip
-*.png
-*.jpg
-*.jpeg
-*.gif
