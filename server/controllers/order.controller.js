@@ -145,13 +145,15 @@ export async function StripeCheckoutController(request, response) {
             };
         });
 
+        const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5178';
+
         // Create Stripe session with more details in success URL
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ['card'],
             line_items,
             mode: 'payment',
-             success_url: `${FRONTEND_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
-            cancel_url: `${FRONTEND_URL}/checkout?cancelled=true`,
+            success_url: `${FRONTEND_URL}/success?session_id={CHECKOUT_SESSION_ID}&user_id=${userId}&address_id=${addressId}`,
+    cancel_url: `${FRONTEND_URL}/checkout?cancelled=true`,
             metadata: {
                 userId: userId.toString(),
                 addressId: addressId,
