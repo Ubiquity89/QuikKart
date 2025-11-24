@@ -1,5 +1,4 @@
 {
- {
   "version": 2,
   "builds": [
     {
@@ -11,11 +10,19 @@
     }
   ],
   "routes": [
-    { "handle": "filesystem" },
-    { "src": "/api/.*", "dest": "/api" },
-    { "src": "/(.*)", "dest": "/index.html" }
+    {
+      "src": "/api/(.*)",
+      "dest": "https://quikkart-1.onrender.com/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/"
+    }
   ],
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/api/:path*",
+      "destination": "https://quikkart-1.onrender.com/:path*"
+    }
   ]
 }
