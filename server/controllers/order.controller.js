@@ -150,8 +150,8 @@ export async function StripeCheckoutController(request, response) {
             payment_method_types: ['card'],
             line_items,
             mode: 'payment',
-            success_url: `${FRONTEND_URL}/success?session_id={CHECKOUT_SESSION_ID}&user_id=${userId}&address_id=${addressId}`,
-    cancel_url: `${FRONTEND_URL}/checkout?cancelled=true`,
+             success_url: `${FRONTEND_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: `${FRONTEND_URL}/checkout?cancelled=true`,
             metadata: {
                 userId: userId.toString(),
                 addressId: addressId,
@@ -243,62 +243,30 @@ export async function handleStripeWebhook(req, res) {
     res.json({ received: true });
 }
 
-export async function verifyPayment(request, response) {
+export async function verifyPayment(req, res) {
     try {
-        const { session_id } = request.query;
-        
-        if (!session_id) {
-            return response.status(400).json({
-                message: 'Session ID is required',
-                error: true,
-                success: false
-            });
-        }
+        const { session_id } = req.query;
+        if (!session_id) return res.status(400).json({ message: "Session ID is required", error: true, success: false });
 
-        // Retrieve the session from Stripe with expanded line items and products
         const session = await stripe.checkout.sessions.retrieve(session_id, {
-            expand: [
-                'line_items', 
-                'payment_intent', 
-                'line_items.data.price.product'
-            ]
+            expand: ['line_items', 'payment_intent', 'line_items.data.price.product']
         });
 
-        // Verify payment was successful
         if (session.payment_status !== 'paid') {
-            return response.status(400).json({
-                message: 'Payment not completed',
-                error: true,
-                success: false
-            });
+            return res.status(400).json({ message: "Payment not completed", error: true, success: false });
         }
 
         const userId = session.metadata.userId;
         const addressId = session.metadata.addressId;
         const items = JSON.parse(session.metadata.items);
 
-        // Get the cart items to get the full product details
-        const cartItems = await CartProductModel.find({ userId }).populate('productId');
-        
-        // Create a map of productId to product details for quick lookup
-        const productMap = {};
-        cartItems.forEach(item => {
-            if (item.productId) {
-                productMap[item.productId._id.toString()] = item.productId;
-            }
-        });
-
-        // Create orders in database
+        // Create orders directly from metadata
         const orders = await Promise.all(items.map(async (item) => {
-            const product = productMap[item.p] || {};
             const order = new OrderModel({
-                userId: userId,
+                userId,
                 orderId: `ORD-${new mongoose.Types.ObjectId()}`,
-                productId: item.p, // Using the simplified product ID from metadata
-                product_details: {
-                    name: product.name || 'Product',
-                    image: product.image || ''
-                },
+                productId: item.p,
+                product_details: { name: "Product", image: "" }, // optional: fetch product details if needed
                 paymentId: session.payment_intent.id,
                 payment_status: 'PAID',
                 delivery_address: addressId,
@@ -311,22 +279,13 @@ export async function verifyPayment(request, response) {
         }));
 
         // Clear user's cart
-        await CartProductModel.deleteMany({ userId: userId });
+        await CartProductModel.deleteMany({ userId });
         await UserModel.updateOne({ _id: userId }, { shopping_cart: [] });
 
-        return response.json({
-            message: 'Order created successfully',
-            data: orders,
-            error: false,
-            success: true
-        });
+        return res.json({ message: "Order created successfully", data: orders, error: false, success: true });
 
     } catch (error) {
-        console.error('Verify payment error:', error);
-        return response.status(500).json({
-            message: error.message || 'Error verifying payment',
-            error: true,
-            success: false
-        });
+        console.error("Verify payment error:", error);
+        return res.status(500).json({ message: error.message || "Error verifying payment", error: true, success: false });
     }
 }
