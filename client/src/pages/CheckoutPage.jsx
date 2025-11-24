@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useGlobalContext } from '../provider/GlobalProvider'
 import { DisplayPriceInRupees } from '../utils/DisplayPriceInRupees'
 import AddAddress from '../components/AddAddress'
@@ -11,14 +11,32 @@ import { useNavigate } from 'react-router-dom'
 import { loadStripe } from '@stripe/stripe-js'
 
 const CheckoutPage = () => {
-  const { notDiscountTotalPrice, totalPrice, totalQty, fetchCartItem,fetchOrder } = useGlobalContext()
+  const { notDiscountTotalPrice, totalPrice, totalQty, fetchCartItem, fetchOrder, fetchAddress } = useGlobalContext()
   const [openAddress, setOpenAddress] = useState(false)
-  const addressList = useSelector(state => state.address.addressList)
+  const addressList = useSelector(state => state.address?.addressList || [])
   const [selectAddress, setSelectAddress] = useState(null)
   const cartItemsList = useSelector(state => state.cartItem.cart)
   const navigate = useNavigate()
   const [isLoading, setIsLoading] = useState(false)
   const [isProcessingPayment, setIsProcessingPayment] = useState(false)
+  const [isLoadingAddress, setIsLoadingAddress] = useState(true)
+
+  // Fetch addresses when component mounts
+  useEffect(() => {
+    const loadAddresses = async () => {
+      try {
+        setIsLoadingAddress(true)
+        await fetchAddress()
+      } catch (error) {
+        console.error('Error loading addresses:', error)
+        toast.error('Failed to load addresses')
+      } finally {
+        setIsLoadingAddress(false)
+      }
+    }
+    
+    loadAddresses()
+  }, [fetchAddress])
 
   const validateAddress = () => {
     if (selectAddress === null || selectAddress === undefined) {
@@ -36,103 +54,120 @@ const CheckoutPage = () => {
     return true
   }
 
-  const handleCashOnDelivery = async() => {
-    if (!validateAddress()) {
-      return
-    }
-    
-    setIsLoading(true)
-    try {
-          const response = await Axios({
-            ...SummaryApi.CashOnDeliveryOrder,
-            data : {
-              list_items : cartItemsList,
-              addressId : addressList[selectAddress]?._id,
-              subTotalAmt : totalPrice,
-              totalAmt :  totalPrice,
-            }
-          })
-
-          const { data : responseData } = response
-
-          if(responseData.success){
-              toast.success(responseData.message)
-              if(fetchCartItem){
-                fetchCartItem()
-              }
-              if(fetchOrder){
-                fetchOrder()
-              }
-              // Get the first order ID from the response
-              const orderId = responseData.data?.[0]?.orderId || null
-              navigate('/success',{
-                state : {
-                  text : "Order",
-                  orderId: orderId
-                }
-              })
-          }
-
-      } catch (error) {
-        AxiosToastError(error)
-      } finally {
-        setIsLoading(false)
-      }
+ const handleCashOnDelivery = async () => {
+  if (!validateAddress()) {
+    return;
   }
+  
+  setIsLoading(true);
+  try {
+    const response = await Axios({
+      ...SummaryApi.CashOnDeliveryOrder,
+      data: {
+        list_items: cartItemsList,
+        addressId: addressList[selectAddress]?._id,
+        subTotalAmt: totalPrice,
+        totalAmt: totalPrice,
+      }
+    });
 
+    const { data: responseData } = response;
+
+    if (responseData.success) {
+      toast.success(responseData.message);
+      if (fetchCartItem) {
+        await fetchCartItem();
+      }
+      if (fetchOrder) {
+        await fetchOrder();
+      }
+      
+      // Get the first order from the response
+      const order = responseData.data?.[0];
+      if (order) {
+        navigate('/success', {
+          state: {
+            orderId: order._id || order.orderId,
+            orderDetails: order
+          }
+        });
+      } else {
+        // Fallback if order data structure is different
+        navigate('/success', {
+          state: {
+            orderId: 'N/A',
+            orderDetails: {
+              orderId: responseData.orderId || 'N/A',
+              totalAmt: totalPrice,
+              payment_status: 'Paid (Cash on Delivery)'
+            }
+          }
+        });
+      }
+    }
+  } catch (error) {
+    AxiosToastError(error);
+  } finally {
+    setIsLoading(false);
+  }
+};
  const handleOnlinePayment = async () => {
-    if (!validateAddress()) {
-        return;
+  if (!validateAddress()) {
+    return;
+  }
+  
+  try {
+    setIsProcessingPayment(true);
+    toast.loading("Processing payment...");
+
+    const stripePublicKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
+    
+    if (!stripePublicKey) {
+      toast.error('Stripe is not configured properly. Please try again later.');
+      console.error('Stripe public key is missing');
+      return;
     }
     
-    try {
-        setIsProcessingPayment(true);
-        toast.loading("Processing payment...");
-
-        const stripePublicKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
-        
-        if (!stripePublicKey) {
-            toast.error('Stripe is not configured properly');
-            return;
-        }
-        
-        const stripePromise = await loadStripe(stripePublicKey);
-        
-        if (!stripePromise) {
-            toast.error('Failed to load Stripe');
-            return;
-        }
-
-        const response = await Axios({
-            ...SummaryApi.payment_url,
-            data: {
-                list_items: cartItemsList,
-                addressId: addressList[selectAddress]?._id,
-                subTotalAmt: totalPrice,
-                totalAmt: totalPrice,
-            }
-        });
-
-        console.log('Server response:', response);
-        const { data: responseData } = response;
-
-        if (!responseData.success) {
-            throw new Error(responseData.message || 'Failed to create payment session');
-        }
-
-        if (!responseData.data?.url) {
-            throw new Error('Invalid session URL received');
-        }
-
-        // Redirect to Stripe Checkout
-        window.location.href = responseData.data.url;
-        
-    } catch (error) {
-        console.error('Payment error:', error);
-        toast.error(error.response?.data?.message || error.message || 'Payment failed');
-    } finally {
-        setIsProcessingPayment(false);
+    // Initialize Stripe with the public key
+    const stripe = await loadStripe(stripePublicKey, {
+      // Optional: Add any additional options here
+    });
+    
+    if (!stripe) {
+      toast.error('Failed to initialize payment. Please try again.');
+      return;
     }
+
+    const response = await Axios({
+      ...SummaryApi.payment_url,
+      data: {
+        list_items: cartItemsList,
+        addressId: addressList[selectAddress]?._id,
+        subTotalAmt: totalPrice,
+        totalAmt: totalPrice,
+      }
+    });
+
+    const { data: responseData } = response;
+
+    if (!responseData.success) {
+      throw new Error(responseData.message || 'Failed to create payment session');
+    }
+
+    if (!responseData.data?.url) {
+      throw new Error('Invalid session URL received');
+    }
+
+    // Redirect to Stripe Checkout
+    window.location.href = responseData.data.url;
+    
+  } catch (error) {
+    console.error('Payment error:', error);
+    toast.error(error.response?.data?.message || error.message || 'Payment failed. Please try again.');
+  } finally {
+    setIsProcessingPayment(false);
+    toast.dismiss(); // Clear any loading toasts
+  }
 };
 
   return (
@@ -142,33 +177,35 @@ const CheckoutPage = () => {
           {/***address***/}
           <h3 className='text-lg font-semibold'>Choose your address</h3>
           <div className='bg-white p-2 grid gap-4'>
-            {
-              addressList.map((address, index) => {
-                return (
-                  <label htmlFor={"address" + index}>
-                    <div className='border rounded p-3 flex gap-3 hover:bg-blue-50'>
-                      <div>
-                        <input 
-                          id={"address" + index} 
-                          type='radio' 
-                          value={index} 
-                          checked={selectAddress === index}
-                          onChange={(e) => setSelectAddress(Number(e.target.value))} 
-                          name='address' 
-                        />
-                      </div>
-                      <div>
-                        <p>{address.address_line}</p>
-                        <p>{address.city}</p>
-                        <p>{address.state}</p>
-                        <p>{address.country} - {address.pincode}</p>
-                        <p>{address.mobile}</p>
-                      </div>
+            {isLoadingAddress ? (
+              <div className='text-center py-4'>Loading addresses...</div>
+            ) : addressList.length > 0 ? (
+              addressList.map((address, index) => (
+                <label key={address._id} htmlFor={"address" + index}>
+                  <div className='border rounded p-3 flex gap-3 hover:bg-blue-50'>
+                    <div>
+                      <input 
+                        id={"address" + index} 
+                        type='radio' 
+                        value={index} 
+                        checked={selectAddress === index}
+                        onChange={(e) => setSelectAddress(Number(e.target.value))} 
+                        name='address' 
+                      />
                     </div>
-                  </label>
-                )
-              })
-            }
+                    <div>
+                      <p>{address.address_line}</p>
+                      <p>{address.city}</p>
+                      <p>{address.state}</p>
+                      <p>{address.country} - {address.pincode}</p>
+                      <p>{address.mobile}</p>
+                    </div>
+                  </div>
+                </label>
+              ))
+            ) : (
+              <div className='text-center py-4'>No saved addresses found. Please add an address.</div>
+            )}
             <div onClick={() => setOpenAddress(true)} className='h-16 bg-blue-50 border-2 border-dashed flex justify-center items-center cursor-pointer'>
               Add address
             </div>
