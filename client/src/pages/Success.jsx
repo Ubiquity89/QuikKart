@@ -1,10 +1,11 @@
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { FaCheckCircle, FaShoppingBag, FaHome } from 'react-icons/fa';
 import { useEffect, useState } from 'react';
-import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import { useDispatch } from 'react-redux';
 import { handleAddItemCart } from '../store/cartProduct';
+import Axios from '../utils/Axios';
+import SummaryApi from '../common/SummaryApi';
 
 const Success = () => {
   const [searchParams] = useSearchParams();
@@ -26,7 +27,10 @@ const Success = () => {
 
       try {
         // Verify payment and create order
-        const response = await axios.get(`/api/order/verify-payment?session_id=${sessionId}`);
+        const response = await Axios({
+          ...SummaryApi.verifyPayment,
+          params: { session_id: sessionId }
+        });
         
         if (response.data.success) {
           setOrder(response.data.data[0]); // Assuming the first order in the array

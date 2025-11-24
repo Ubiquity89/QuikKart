@@ -25,7 +25,7 @@ const UploadSubCategoryModel = ({ close, fetchData, data }) => {
     useEffect(() => {
         const fetchCategories = async () => {
             try {
-                const response = await Axios.get('/api/category/get');
+                const response = await Axios(SummaryApi.getCategory);
                 if (response.data?.success) {
                     dispatch(setAllCategory(response.data.data));
                 }

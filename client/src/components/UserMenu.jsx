@@ -3,6 +3,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
 import Divider from './Divider';
 import Axios from '../utils/Axios';
+import SummaryApi from '../common/SummaryApi';
 import { logout } from '../store/userSlice';
 import { clearCart } from '../store/cartProduct';
 import { toast } from 'react-hot-toast';
@@ -35,8 +36,7 @@ const UserMenu = ({close}) => {
     
     // 7. Try to notify server in the background (don't wait for response)
     Axios({
-      method: 'POST',
-      url: '/api/user/logout',
+      ...SummaryApi.logout,
       timeout: 1000
     }).catch(() => {
       // Ignore any errors

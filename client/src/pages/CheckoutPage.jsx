@@ -104,8 +104,7 @@ const CheckoutPage = () => {
         }
 
         const response = await Axios({
-            url: '/api/order/create-payment-intent',
-            method: 'post',
+            ...SummaryApi.payment_url,
             data: {
                 list_items: cartItemsList,
                 addressId: addressList[selectAddress]?._id,
