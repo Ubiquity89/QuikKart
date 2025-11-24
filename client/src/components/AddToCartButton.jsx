@@ -20,16 +20,52 @@ const AddToCartButton = ({ data }) => {
   const [qty, setQty] = useState(0);
   const [cartItemDetails, setCartItemsDetails] = useState();
 
+  const user = useSelector((state) => state.user);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(false);
+  
   const handleADDTocart = async (e) => {
     e.preventDefault();
     e.stopPropagation();
 
-    // LOGIN PROTECTION — FIXED
-    const token = localStorage.getItem("token");
+    // Prevent multiple clicks while checking
+    if (isCheckingAuth) return;
+    
+    // Check if we have a token in localStorage
+    const token = localStorage.getItem("accesstoken");
+    
     if (!token) {
       toast.error("Please login to add items to the cart.");
       navigate("/login");
       return;
+    }
+    
+    // If we have a token but no user data, try to fetch it
+    if (token && !user?._id) {
+      setIsCheckingAuth(true);
+      try {
+        const response = await Axios(SummaryApi.userDetails);
+        if (response?.data?.success) {
+          // If we got user data, update the Redux store
+          const userDetails = response.data.data;
+          const { setUserDetails } = require('../store/userSlice');
+          dispatch(setUserDetails(userDetails));
+          // Continue with adding to cart
+        } else {
+          // If no user data but we had a token, clear the invalid token
+          localStorage.removeItem("accesstoken");
+          localStorage.removeItem("refreshtoken");
+          toast.error("Session expired. Please login again.");
+          navigate("/login");
+          return;
+        }
+      } catch (error) {
+        console.error("Error fetching user details:", error);
+        toast.error("Failed to verify your session. Please login again.");
+        navigate("/login");
+        return;
+      } finally {
+        setIsCheckingAuth(false);
+      }
     }
 
     try {

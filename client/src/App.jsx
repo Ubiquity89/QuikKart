@@ -23,21 +23,33 @@ function App() {
 
   const fetchUser = async () => {
     try {
+      // Check if we have a token in localStorage
+      const token = localStorage.getItem("accesstoken");
+      if (!token) {
+        // No token means user is not logged in
+        dispatch(setUserDetails({}));
+        return null;
+      }
+
+      // Try to fetch user details
       const userData = await fetchUserDetailsFn();
       if (userData?.data) {
+        // If we got user data, update the Redux store
         dispatch(setUserDetails(userData.data));
-        localStorage.setItem("user", JSON.stringify(userData.data));
         return userData.data;
-      }
-      return null;
-    } catch (err) {
-      console.error("Failed to fetch user:", err);
-      if (err?.response?.status === 401) {
-        localStorage.removeItem("user");
+      } else {
+        // If no user data but we had a token, clear the invalid token
         localStorage.removeItem("accesstoken");
         localStorage.removeItem("refreshtoken");
         dispatch(setUserDetails({}));
+        return null;
       }
+    } catch (err) {
+      console.error("Failed to fetch user:", err);
+      // On any error, clear auth data
+      localStorage.removeItem("accesstoken");
+      localStorage.removeItem("refreshtoken");
+      dispatch(setUserDetails({}));
       return null;
     }
   };
