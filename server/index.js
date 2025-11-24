@@ -26,7 +26,8 @@ const app = express();
 
 const allowedOrigins = [
   'http://localhost:5178',
-  /\.vercel\.app$/   // regex to allow all *.vercel.app domains
+  "https://blinkit-two-rho.vercel.app"
+
 ];
 
 app.use(
