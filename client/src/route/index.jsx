@@ -30,15 +30,15 @@ const router = createBrowserRouter([
         children: [
             // Public routes
             {
-                path: "",
+                index: true,  // This makes it the default route
                 element: <Home />
             },
             {
-                path: ":category",
+                path: "category/:category",
                 element: <ProductListPage />
             },
             {
-                path: ":category/:subCategory",
+                path: "category/:category/:subCategory",
                 element: <ProductListPage />
             },
             {
@@ -49,6 +49,7 @@ const router = createBrowserRouter([
                 path: "product/:product",
                 element: <ProductDisplayPage />
             },
+            // Auth routes
             {
                 path: "login",
                 element: <Login />

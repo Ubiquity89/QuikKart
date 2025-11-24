@@ -18,6 +18,8 @@ function App() {
   const dispatch = useDispatch();
   const location = useLocation();
   const [isAppInitialized, setIsAppInitialized] = useState(false);
+  const publicPaths = ['/login', '/register', '/forgot-password', '/verification-otp', '/reset-password'];
+  const isPublicPath = publicPaths.includes(location.pathname);
 
   const fetchUser = async () => {
     try {
@@ -96,46 +98,49 @@ function App() {
   };
 
   useEffect(() => {
+    let isMounted = true;
+    
     const initializeApp = async () => {
       try {
-        // Check for existing user in localStorage
-        const storedUser = localStorage.getItem('user');
-        let savedUser = null;
+        // First, check if we have tokens
+        const accessToken = localStorage.getItem('accesstoken');
+        const refreshToken = localStorage.getItem('refreshtoken');
+        const hasTokens = !!(accessToken && refreshToken);
         
-        try {
-          savedUser = storedUser && storedUser !== 'undefined' 
-            ? JSON.parse(storedUser) 
-            : null;
-        } catch (err) {
-          savedUser = null;
-          localStorage.removeItem('user');
+        // If we have tokens, try to fetch user data
+        if (hasTokens) {
+          try {
+            const userData = await fetchUser();
+            if (userData?.data?._id) {
+              // If we have a valid user, fetch cart items
+              await fetchCartItem().catch(console.error);
+            }
+          } catch (error) {
+            console.error('Error fetching user data:', error);
+            // Don't throw here, let the app continue loading
+          }
         }
-
-        // Set user from localStorage if exists
-        if (savedUser?._id) {
-          dispatch(setUserDetails(savedUser));
-        }
-
-        // Fetch data in parallel where possible
-        const [userData] = await Promise.all([
-          fetchUser(),
+        
+        // Always fetch categories and subcategories
+        await Promise.all([
           fetchCategory().catch(console.error),
           fetchSubCategory().catch(console.error)
         ]);
-
-        // Fetch cart items if user is logged in
-        if (userData?._id || savedUser?._id) {
-          await fetchCartItem().catch(console.error);
-        }
+        
       } catch (error) {
         console.error('Error initializing app:', error);
-        toast.error('Failed to load application data. Please refresh the page.');
       } finally {
-        setIsAppInitialized(true);
+        if (isMounted) {
+          setIsAppInitialized(true);
+        }
       }
     };
 
     initializeApp();
+    
+    return () => {
+      isMounted = false;
+    };
   }, [dispatch]);
 
   // Show loading state while initializing

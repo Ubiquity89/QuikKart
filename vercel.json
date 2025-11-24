@@ -9,14 +9,14 @@
       }
     }
   ],
-  "rewrites": [
+  "routes": [
     {
-      "source": "/api/:path*",
-      "destination": "https://quikkart-1.onrender.com/:path*"
+      "src": "/api/(?<path>.*)",
+      "dest": "https://quikkart-1.onrender.com/$path"
     },
     {
-      "source": "/(.*)",
-      "destination": "/"
+      "src": "^/(.*)",
+      "dest": "/index.html"
     }
   ]
 }

@@ -6,6 +6,10 @@ const Axios = axios.create({
   baseURL: baseURL,
   withCredentials: true,
   timeout: 10000, // 10 seconds timeout
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
+  }
 });
 
 // Flag to prevent multiple token refresh attempts
@@ -147,10 +151,11 @@ const refreshAccessToken = async (refreshToken) => {
     const response = await axios.post(
       `${baseURL}/user/refresh-token`,
       { refreshToken },
-      { 
+      {
         withCredentials: true,
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json'
         }
       }
     );

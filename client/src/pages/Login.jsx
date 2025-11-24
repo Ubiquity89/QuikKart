@@ -86,6 +86,7 @@ const Login = () => {
                             value={data.email}
                             onChange={handleChange}
                             placeholder='Enter your email'
+                            autoComplete='username email'
                             disabled={isLoading}
                             required
                         />
@@ -111,6 +112,7 @@ const Login = () => {
                                 value={data.password}
                                 onChange={handleChange}
                                 placeholder='Enter your password'
+                                autoComplete='current-password'
                                 disabled={isLoading}
                                 required
                                 minLength={6}

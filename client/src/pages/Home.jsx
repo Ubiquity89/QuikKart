@@ -7,27 +7,35 @@ import {Link, useNavigate} from 'react-router-dom'
 import CategoryWiseProductDisplay from '../components/CategoryWiseProductDisplay'
 
 const Home = () => {
-  const loadingCategory = useSelector(state => state.product.loadingCategory)
-  const categoryData = useSelector(state => state.product.allCategory)
-  const subCategoryData = useSelector(state => state.product.allSubCategory)
+  // Memoized selectors to prevent unnecessary re-renders
+  const { loadingCategory, allCategory: categoryData, allSubCategory: subCategoryData } = useSelector(
+    state => ({
+      loadingCategory: state.product.loadingCategory,
+      allCategory: state.product.allCategory,
+      allSubCategory: state.product.allSubCategory
+    }),
+    // Custom equality function to prevent re-renders when unrelated state changes
+    (prev, next) => 
+      prev.loadingCategory === next.loadingCategory &&
+      prev.allCategory === next.allCategory &&
+      prev.allSubCategory === next.allSubCategory
+  )
+  
   const navigate = useNavigate()
 
-  // Debug logging
-  console.log('Home render - categoryData:', categoryData)
-  console.log('Home render - loadingCategory:', loadingCategory)
-  console.log('Home render - categoryData length:', categoryData?.length || 0)
-
-  // Log Redux state
-  const entireReduxState = useSelector(state => state)
-  console.log('Full Redux state:', entireReduxState)
-
+  // Debug logging - only in development
+  if (process.env.NODE_ENV === 'development') {
+    console.log('Home render - categoryData:', categoryData)
+    console.log('Home render - loadingCategory:', loadingCategory)
+    console.log('Home render - categoryData length:', categoryData?.length || 0)
+  }
 
   return (
-   <section className='bg-white'>
+    <section className='bg-white'>
       <div className='container mx-auto'>
-          <div className={`w-full h-full min-h-48 bg-blue-100 rounded ${!banner && "animate-pulse my-2" } `}>
+          <div className='w-full h-full min-h-48 bg-blue-100 rounded my-2'>
               <img
-                src={banner}
+                src={banner || ''}
                 className='w-full h-full hidden lg:block'
                 alt='banner' 
               />
