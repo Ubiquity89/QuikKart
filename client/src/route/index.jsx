@@ -30,10 +30,6 @@ const router = createBrowserRouter([
         children: [
             // Public routes
             {
-                index: true,  // This makes it the default route
-                element: <Home />
-            },
-            {
                 path: "category/:category",
                 element: <ProductListPage />
             },
@@ -48,6 +44,21 @@ const router = createBrowserRouter([
             {
                 path: "product/:product",
                 element: <ProductDisplayPage />
+            },
+            // Handle category URLs like /Atta-Rice---Dal-69199385354cdfcf2aecf920
+            {
+                // This will match any path that ends with a 24-character hex ID
+                path: "*",
+                element: <ProductListPage />
+            },
+            // Handle product display URLs
+            {
+                path: "product/:productId",
+                element: <ProductDisplayPage />
+            },
+            {
+                index: true,  // This makes it the default route
+                element: <Home />
             },
             // Auth routes
             {

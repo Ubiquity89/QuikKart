@@ -145,8 +145,8 @@ const SummaryApi = {
         url: `${baseURL}/api/order/cash-on-delivery`,
         method: 'post'
     },
-    payment_url: {
-        url: `${baseURL}/api/order/create-payment-intent`,
+    stripeCheckout: {
+        url: `${baseURL}/api/order/create-checkout-session`,
         method: 'post'
     },
     getOrderDetails: {

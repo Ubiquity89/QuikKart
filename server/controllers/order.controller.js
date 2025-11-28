@@ -77,173 +77,110 @@ export async function getOrderDetailsController(request,response){
 
 // server/controllers/order.controller.js
 export async function StripeCheckoutController(request, response) {
-    try {
-        console.log('Stripe checkout request received');
-        const userId = request.userId;
-        const { list_items, addressId, subTotalAmt, totalAmt } = request.body;
+  try {
+    console.log("Stripe checkout session request received");
 
-        console.log('Request data:', { 
-            userId, 
-            itemsCount: list_items?.length, 
-            addressId, 
-            totalAmt 
-        });
+    const userId = request.userId;
+    const { list_items, metadata_items, addressId } = request.body;
 
-        // Validation
-        if (!list_items || list_items.length === 0) {
-            return response.status(400).json({
-                message: "No items in cart",
-                error: true,
-                success: false
-            });
-        }
+    if (!list_items || list_items.length === 0)
+      return response.status(400).json({ success: false, message: "No items provided" });
 
-        if (!addressId) {
-            return response.status(400).json({
-                message: "Please select an address",
-                error: true,
-                success: false
-            });
-        }
+    if (!addressId)
+      return response.status(400).json({ success: false, message: "Address required" });
 
-        // Format line items for Stripe
-        const line_items = list_items.map(item => {
-            const price = item.productId?.price || 0;
-            let images = [];
-            
-            // Handle different image formats
-            if (item.productId?.image) {
-                if (Array.isArray(item.productId.image)) {
-                    // If it's already an array, use it directly
-                    images = item.productId.image;
-                } else if (typeof item.productId.image === 'object') {
-                    // If it's an object, convert its values to an array
-                    images = Object.values(item.productId.image);
-                } else if (typeof item.productId.image === 'string') {
-                    // If it's a string, use it as a single image
-                    images = [item.productId.image];
-                }
-            }
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ["card"],
+      mode: "payment",
 
-            // Ensure we only pass valid URLs to Stripe
-            const validImages = images.filter(img => 
-                typeof img === 'string' && 
-                (img.startsWith('http://') || img.startsWith('https://'))
-            );
+      success_url: `${process.env.FRONTEND_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.FRONTEND_URL}/cancel`,
 
-            return {
-                price_data: {
-                    currency: 'inr',
-                    product_data: {
-                        name: item.productId?.name || 'Product',
-                        description: item.productId?.description || '',
-                        images: validImages.length > 0 ? validImages : undefined
-                    },
-                    unit_amount: Math.round(price * 100), // Convert to paise
-                },
-                quantity: item.quantity || 1,
-            };
-        });
+      customer_email: request.user.email,
 
-        const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5178';
+      metadata: {
+        userId,
+        addressId,
+        items: metadata_items  // ✔ SEND STRINGIFIED ITEMS
+      },
 
-        // Create Stripe session with more details in success URL
-        const session = await stripe.checkout.sessions.create({
-            payment_method_types: ['card'],
-            line_items,
-            mode: 'payment',
-            success_url: `${process.env.FRONTEND_URL}/success?session_id={CHECKOUT_SESSION_ID}&user_id=${userId}&address_id=${addressId}`,
-    cancel_url: `${process.env.FRONTEND_URL}/checkout?cancelled=true`,
-            metadata: {
-                userId: userId.toString(),
-                addressId: addressId,
-                // Only include essential data to stay under 500 chars
-                items: JSON.stringify(list_items.map(item => ({
-                    p: item.productId?._id, // productId
-                    q: item.quantity       // quantity
-                })))
-            }
-        });
+      line_items: list_items.map(item => ({
+        price_data: {
+          currency: "inr",
+          product_data: {
+            name: item.product_details.name,
+            images: item.product_details.image ? [item.product_details.image] : []
+          },
+          unit_amount: item.price * 100,
+        },
+        quantity: item.quantity,
+      }))
+    });
 
-        return response.json({
-            success: true,
-            data: {
-                url: session.url,
-                sessionId: session.id
-            }
-        });
+    return response.json({
+      success: true,
+      url: session.url
+    });
 
-    } catch (error) {
-        console.error('Stripe checkout error:', error);
-        return response.status(500).json({
-            message: error.message || "Error creating payment session",
-            error: true,
-            success: false
-        });
-    }
+  } catch (err) {
+    console.error("Stripe session error:", err);
+    return response.status(500).json({ success: false, message: err.message });
+  }
 }
+
+
 
 export async function handleStripeWebhook(req, res) {
-    const sig = req.headers['stripe-signature'];
-    const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
-    let event;
+  const sig = req.headers["stripe-signature"];
+  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+  let event;
+  try {
+    event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+  } catch (err) {
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  if (event.type === "checkout.session.completed") {
+    const session = event.data.object;
 
     try {
-        event = stripe.webhooks.constructEvent(
-            req.body,
-            sig,
-            endpointSecret
-        );
-    } catch (err) {
-        console.error('Webhook signature verification failed:', err.message);
-        return res.status(400).send(`Webhook Error: ${err.message}`);
+      const userId = session.metadata.userId;
+      const addressId = session.metadata.addressId;
+      const items = JSON.parse(session.metadata.items);
+
+      const orders = await Promise.all(
+        items.map(async item => {
+          return await OrderModel.create({
+            userId,
+            orderId: `ORD-${new mongoose.Types.ObjectId()}`,
+            productId: item.productId,
+            product_details: item.product_details,
+            paymentId: session.payment_intent,
+            payment_status: "PAID",
+            delivery_address: addressId,
+            subTotalAmt: session.amount_subtotal / 100,
+            totalAmt: session.amount_total / 100,
+            status: "Processing",
+            quantity: item.quantity
+          });
+        })
+      );
+
+      // Clear cart
+      await CartProductModel.deleteMany({ userId });
+      await UserModel.updateOne({ _id: userId }, { shopping_cart: [] });
+
+      return res.status(200).json({ received: true });
+    } catch (error) {
+      console.error("Webhook processing error:", error);
+      return res.status(400).json({ error: error.message });
     }
+  }
 
-    // Handle the checkout.session.completed event
-    if (event.type === 'checkout.session.completed') {
-        const session = event.data.object;
-        
-        try {
-            const { userId, addressId } = session.metadata;
-            const items = JSON.parse(session.metadata.items);
-            
-            // Create order in database
-            const orders = await Promise.all(items.map(async (item) => {
-                const order = new OrderModel({
-                    userId: userId,
-                    orderId: `ORD-${new mongoose.Types.ObjectId()}`,
-                    productId: item.productId,
-                    product_details: {
-                        name: item.product_details?.name || 'Product',
-                        image: item.product_details?.image || ''
-                    },
-                    paymentId: session.payment_intent,
-                    payment_status: 'PAID',
-                    delivery_address: addressId,
-                    subTotalAmt: session.amount_subtotal / 100, // Convert from cents to currency
-                    totalAmt: session.amount_total / 100, // Convert from cents to currency
-                    status: 'Processing',
-                    quantity: item.quantity || 1
-                });
-                return await order.save();
-            }));
-
-            // Clear user's cart
-            await CartProductModel.deleteMany({ userId: userId });
-            await UserModel.updateOne({ _id: userId }, { shopping_cart: [] });
-
-            console.log('Created orders:', orders);
-            return res.status(200).json({ received: true });
-            
-        } catch (error) {
-            console.error('Error processing webhook:', error);
-            return res.status(400).json({ error: error.message });
-        }
-    }
-
-    // Return a 200 response to acknowledge receipt of the event
-    res.json({ received: true });
+  res.json({ received: true });
 }
+
 
 export async function verifyPayment(req, res) {
     try {
@@ -291,3 +228,4 @@ export async function verifyPayment(req, res) {
         return res.status(500).json({ message: error.message || "Error verifying payment", error: true, success: false });
     }
 }
+

@@ -10,6 +10,10 @@ import toast from 'react-hot-toast'
 import { useNavigate } from 'react-router-dom'
 import { loadStripe } from '@stripe/stripe-js'
 
+  
+  
+      
+
 const CheckoutPage = () => {
   const { notDiscountTotalPrice, totalPrice, totalQty, fetchCartItem, fetchOrder, fetchAddress } = useGlobalContext()
   const [openAddress, setOpenAddress] = useState(false)
@@ -20,6 +24,7 @@ const CheckoutPage = () => {
   const [isLoading, setIsLoading] = useState(false)
   const [isProcessingPayment, setIsProcessingPayment] = useState(false)
   const [isLoadingAddress, setIsLoadingAddress] = useState(true)
+ 
 
   // Fetch addresses when component mounts
   useEffect(() => {
@@ -111,64 +116,56 @@ const CheckoutPage = () => {
     setIsLoading(false);
   }
 };
- const handleOnlinePayment = async () => {
-  if (!validateAddress()) {
-    return;
-  }
-  
+const handleOnlinePayment = async () => {
+  if (!validateAddress()) return;
+
   try {
     setIsProcessingPayment(true);
     toast.loading("Processing payment...");
 
-    const stripePublicKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
-    
-    if (!stripePublicKey) {
-      toast.error('Stripe is not configured properly. Please try again later.');
-      console.error('Stripe public key is missing');
-      return;
-    }
-    
-    // Initialize Stripe with the public key
-    const stripe = await loadStripe(stripePublicKey, {
-      // Optional: Add any additional options here
-    });
-    
-    if (!stripe) {
-      toast.error('Failed to initialize payment. Please try again.');
-      return;
-    }
+    // Prepare payload for backend
+    const payload = {
+      list_items: cartItemsList.map(item => ({
+        productId: item.productId?._id || item.productId,
+        name: item.productId?.name || "Product",
+        price: item.price,
+        quantity: item.quantity || 1
+      })),
+      addressId: addressList[selectAddress]?._id,
+      totalAmt: totalPrice
+    };
 
-    const response = await Axios({
-      ...SummaryApi.payment_url,
-      data: {
-        list_items: cartItemsList,
-        addressId: addressList[selectAddress]?._id,
-        subTotalAmt: totalPrice,
-        totalAmt: totalPrice,
+    console.log("Sending payment request:", payload);
+
+    // Make POST request to backend
+    const { data } = await Axios.post(
+      "https://quikkart-1.onrender.com/api/order/create-checkout-session",
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}` // adjust if your auth token is stored elsewhere
+        }
       }
-    });
+    );
 
-    const { data: responseData } = response;
-
-    if (!responseData.success) {
-      throw new Error(responseData.message || 'Failed to create payment session');
+    if (!data.success) {
+      throw new Error(data.message || "Failed to create payment session");
     }
 
-    if (!responseData.data?.url) {
-      throw new Error('Invalid session URL received');
-    }
+    // Redirect user to Stripe Checkout
+    window.location.href = data.url;
 
-    // Redirect to Stripe Checkout
-    window.location.href = responseData.data.url;
-    
   } catch (error) {
-    console.error('Payment error:', error);
-    toast.error(error.response?.data?.message || error.message || 'Payment failed. Please try again.');
+    console.error("Payment error:", error);
+    toast.error(error.response?.data?.message || error.message || "Payment failed. Please try again.");
   } finally {
     setIsProcessingPayment(false);
-    toast.dismiss(); // Clear any loading toasts
+    toast.dismiss();
   }
 };
+
+
 
   return (
     <section className='bg-blue-50'>

@@ -2,6 +2,8 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { Toaster } from 'react-hot-toast';
+import { Elements } from '@stripe/react-stripe-js';
+import { loadStripe } from '@stripe/stripe-js';
 import './App.css';
 import Header from './components/Header';
 import Footer from './components/Footer';
@@ -13,6 +15,10 @@ import fetchUserDetailsFn from './utils/fetchUserDetails';
 import { setUserDetails } from './store/userSlice';
 import { setAllCategory, setAllSubCategory, setLoadingCategory, setError } from './store/productSlice';
 import { handleAddItemCart } from './store/cartProduct';
+
+// Initialize Stripe with your publishable key
+// In App.jsx, update the stripePromise initialization:
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
 
 function App() {
   const dispatch = useDispatch();
@@ -80,17 +86,27 @@ function App() {
       dispatch(setLoadingCategory(true));
       const response = await Axios({
         ...SummaryApi.getSubCategory,
-        timeout: 10000
+        timeout: 10000,
+        validateStatus: (status) => status === 200 || status === 404
       });
       
-      if (response.data.success) {
-        dispatch(setAllSubCategory(response.data.data));
+      if (response.status === 200 && response.data?.success) {
+        dispatch(setAllSubCategory(response.data.data || []));
+        return response.data;
+      } else if (response.status === 404) {
+        console.warn('Subcategories endpoint not found, continuing without subcategories');
+        dispatch(setAllSubCategory([]));
+        return { success: true, data: [] };
       }
-      return response.data;
+      
+      throw new Error(response.data?.message || 'Failed to load subcategories');
     } catch (error) {
-      console.error('Error fetching subcategories:', error);
-      dispatch(setError(error.message || 'Failed to load subcategories'));
-      throw error;
+      console.error('Error in fetchSubCategory:', error);
+      if (error.response?.status !== 404) {
+        dispatch(setError(error.message || 'Failed to load subcategories'));
+      }
+      dispatch(setAllSubCategory([]));
+      return { success: false, error: error.message };
     } finally {
       dispatch(setLoadingCategory(false));
     }
@@ -165,15 +181,26 @@ function App() {
   }
 
   return (
-    <GlobalProvider>
-      <Header />
-      <main className='min-h-[78vh]'>
-        <Outlet />
-      </main>
-      <Footer />
-      <Toaster position="top-center" />
-      {location.pathname !== '/checkout' && <CartMobileLink />}
-    </GlobalProvider>
+     <Elements stripe={stripePromise}>
+      <GlobalProvider>
+        <Header />
+        <main className='min-h-[78vh]'>
+          <Outlet />
+        </main>
+        <Footer />
+        <Toaster 
+          position="top-center"
+          toastOptions={{
+            duration: 3000,
+            style: {
+              background: '#363636',
+              color: '#fff',
+            },
+          }}
+        />
+        {location.pathname !== '/checkout' && <CartMobileLink />}
+      </GlobalProvider>
+    </Elements>
   )
 }
 

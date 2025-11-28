@@ -15,7 +15,10 @@ import AddToCartButton from '../components/AddToCartButton'
 
 const ProductDisplayPage = () => {
   const params = useParams()
-  let productId = params?.product?.split("-")?.slice(-1)[0]
+  // Handle both URL formats:
+  // 1. /product/product-name-123 -> params.product is "product-name-123"
+  // 2. /Category-Name-123 -> params.productId is "123" and params.category is "Category-Name"
+  let productId = params?.productId || params?.product?.split("-")?.slice(-1)[0]
   const [data,setData] = useState({
     name : "",
     image : [""]
