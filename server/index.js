@@ -26,8 +26,8 @@ const app = express();
 
 const allowedOrigins = [
   'http://localhost:5178',
-  "https://blinkit-two-rho.vercel.app"
-
+  "https://blinkit-two-rho.vercel.app",
+  "https://blinkit-ubiquity89s-projects.vercel.app"
 ];
 
 app.use(
